@@ -74,17 +74,11 @@ def print_best_solution_now(start_time, shared_dict, params,
     def my_str(x): return support.float_representation(x, precision)
 
 
-    has_aic_or_claic = params.model_func_file is None and (params.final_structure != params.initial_structure).any()
-    has_aic = not params.linked_snp and has_aic_or_claic
-    has_claic =  params.linked_snp and has_aic_or_claic
-    
-
     all_models_data = dict(shared_dict)
     if not all_models_data:
         return
-    all_models = [(i, all_models_data[i][0]) for i in all_models_data]
-    all_models = sorted(all_models, key=lambda x: x[
-                        1].get_fitness_func_value())
+    all_models = [(i, all_models_data[i]) for i in all_models_data]
+    all_models = sorted(all_models, key=lambda x: x[1].get_fitness_func_value())
 
     s = (datetime.now() - start_time).total_seconds()
     write_func('\n[%(hours)03d:%(minutes)02d:%(seconds)02d]' % {
@@ -94,56 +88,7 @@ def print_best_solution_now(start_time, shared_dict, params,
     })
 
     support.print_set_of_models(log_file, all_models, 
-                params, first_col='GA number', heading='All best logLL models:', silence=params.silence)
-
-    if has_aic:
-        all_aic_models = []
-        for i in all_models_data:
-            best_model, final_models = all_models_data[i]
-            all_aic_models.append((i, best_model))
-            for model in final_models:
-                if model.get_aic_score() < best_model.get_aic_score():
-                    all_aic_models[-1] = (i, model)
-
-        all_aic_models = sorted(all_aic_models, key=lambda x: x[1].get_aic_score())
-        support.print_set_of_models(log_file, all_aic_models, 
-                params, first_col='GA number', heading='\nAll best AIC models:', silence=params.silence)
-    if has_claic:
-        all_claic_models = []
-        for i in all_models_data:
-            best_model, final_models = all_models_data[i]
-            for final_model in final_models:
-                all_claic_models.append((i, final_model))
-#            if len(final_models) > 0:
-#                all_claic_models.append((i, final_models[0]))
-#            for model in final_models:
-#                if model.get_claic_score() < best_model.get_claic_score():
-#                    all_claic_models[-1] = (i, model)
-
-        if len(all_claic_models) != 0:
-            all_claic_models = sorted(all_claic_models, key=lambda x: x[1].get_claic_score())
-            support.print_set_of_models(log_file, all_claic_models, 
-                    params, first_col='GA number', heading='\nAll intermediate and final models (with CLAIC):', silence=params.silence)
-
-    support.print_best_logll_model_long(log_file, all_models[0][1], params, silence=params.silence)
-
-    if has_aic:
-        support.print_best_aic_model_long(log_file, all_aic_models[0][1], params, silence=params.silence)
-
-    if draw_model:
-        support.save_model_plot(os.path.join(params.output_dir, 'best_logLL.png'), all_models[0][1], params, title='')
-
-        if has_aic:
-            support.save_model_plot(os.path.join(params.output_dir, 'best_aic.png'), all_aic_models[0][1], params, title='')
-
-    support.print_model_code(params.output_dir, all_models[0][1], params, prefix='best_logLL_model')
-    
-    if has_aic:
-        support.print_model_code(params.output_dir, all_aic_models[0][1], params, prefix='best_aic_model')
-
-    if not params.test:
-        write_func(
-            '\nYou can find its picture and python code in output directory')
+                params, first_col='Run number', heading='All best logLL models:', silence=params.silence)
 
 
 def main():
