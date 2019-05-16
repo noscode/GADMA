@@ -387,13 +387,15 @@ class Demographic_model:
         if identificator == 't' or identificator == 's':
             return np.random.uniform(low_bound, upp_bound)
         # if identificator == 'm' or identificator == 'n' or None
+        if low_bound <= 0:
+            low_bound = 1e-15
         mode = 1.0
         if low_bound >= mode:
-            sample = np.random.triangular(low_bound, low_bound, upp_bound)
+            sample = np.exp(np.random.triangular(np.log(low_bound), np.log(low_bound), np.log(upp_bound)))
         elif upp_bound <= mode:
-            sample = np.random.triangular(low_bound, upp_bound, upp_bound)
+            sample = np.exp(np.random.triangular(np.log(low_bound), np.log(upp_bound), np.log(upp_bound)))
         else:
-            sample = np.random.triangular(low_bound, mode, upp_bound)
+            sample = np.log(np.random.triangular(np.log(low_bound), np.log(mode), np.log(upp_bound)))
         return sample
 
     def init_random_model(self, structure):
