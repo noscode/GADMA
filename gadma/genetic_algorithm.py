@@ -137,7 +137,7 @@ class GA(object):
                               '--Start random pipeline--')
 
         self.run_one_iteration() 
-        self.best_model = self.model
+        self.best_model = copy.deepcopy(self.model)
         if shared_dict is not None:
             shared_dict[
                 self.prefix] = copy.deepcopy(
@@ -149,7 +149,7 @@ class GA(object):
         while True:
             self.run_one_iteration()
             if self.best_model.get_fitness_func_value() > self.model.get_fitness_func_value():
-                self.best_model = self.model
+                self.best_model = copy.deepcopy(self.model)
                 if shared_dict is not None:
                     shared_dict[
                         self.prefix] = copy.deepcopy(
