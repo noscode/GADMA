@@ -113,7 +113,7 @@ class GA(object):
 
         s = self.work_time
         t = '\n[%(hours)03d:%(minutes)02d:%(seconds)02d]' % {'hours': s / 3600, 'minutes': s % 3600 / 60, 'seconds': s % 60}
-        support.write_to_file(self.log_file, self.cur_iteration, t, self.model.get_fitness_func_value(), self.model)
+        support.write_to_file(self.log_file, self.cur_iteration, t, - self.model.get_fitness_func_value(), self.model)
 
     
     def run(self, shared_dict=None):
@@ -148,7 +148,7 @@ class GA(object):
 
         while True:
             self.run_one_iteration()
-            if self.best_model.get_fitness_func_value() < self.model.get_fitness_func_value():
+            if self.best_model.get_fitness_func_value() > self.model.get_fitness_func_value():
                 self.best_model = self.model
                 if shared_dict is not None:
                     shared_dict[
