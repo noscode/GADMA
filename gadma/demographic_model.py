@@ -395,7 +395,7 @@ class Demographic_model:
         elif upp_bound <= mode:
             sample = np.exp(np.random.triangular(np.log(low_bound), np.log(upp_bound), np.log(upp_bound)))
         else:
-            sample = np.log(np.random.triangular(np.log(low_bound), np.log(mode), np.log(upp_bound)))
+            sample = np.exp(np.random.triangular(np.log(low_bound), np.log(mode), np.log(upp_bound)))
         return sample
 
     def init_random_model(self, structure):
