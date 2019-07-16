@@ -142,6 +142,9 @@ class Options_storage:
         self.pil_available = False
         self.moments_available = False
 
+        self.max_iter = 100
+	self.initial_design = 100
+
     def from_file(self, input_filename):
         with open(input_filename) as f:
             line_number = 0
@@ -313,6 +316,10 @@ class Options_storage:
                     self.linked_snp = value.lower() == 'true'
                 elif identity == "unlinked snp's" or identity == "unlinked snp":
                     self.linked_snp = value.lower() == 'false'
+                elif identity == 'max iteration':
+                    self.max_iter = int(value.lower())
+                elif identity == 'initial design':
+                    self.initial_design = int(value.lower()) 
                 else:
                     support.error(
                         'Cannot recognize identifier: ' +
@@ -334,6 +341,8 @@ class Options_storage:
         string = ''.join(string)
 
         with open(output_filename, 'w') as out:
+            out.write('Initial design: ' + str(self.initial_design) + '\n')
+            out.write('Max iter: ' + str(self.max_iter) + '\n')
             out.write(
                 string.format(
                     self.output_dir,
@@ -783,7 +792,7 @@ def test_args():
     options_storage.linked_snp = False
     options_storage.theta = 0.37976
     options_storage.gen_time = 25
-    options_storage.initial_structure = np.array([1])
+    options_storage.initial_structure = np.array([2])
     options_storage.final_structure = np.array([2])
     options_storage.size_of_generation = 5
     options_storage.fracs = [float(x)

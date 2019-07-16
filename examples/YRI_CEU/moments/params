@@ -1,0 +1,20 @@
+Input file: YRI_CEU.fs
+
+Output directory: test_dir
+
+Custom filename: demographic_models.py
+
+Parameter identifiers: n,n,n,m,t,t
+
+Use moments or dadi: moments
+
+Initial design: 5
+
+Max iteration: 100
+
+Name of local optimization: optimize_log
+
+maxiter: 1000
+
+Number of repeats: 5
+Number of processes: 5

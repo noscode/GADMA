@@ -50,6 +50,8 @@ class GA(object):
         # all parameters
         self.params = params
 
+        self.cur_ff_it = 0
+
         # some constants on number of iterations:
         # number of iterations, during which fitness function doesn't change, when we stop ga
         # look for is_stoped function
@@ -295,7 +297,7 @@ class GA(object):
                 self.select(self.params.size_of_generation)
             return
         # generate random models 5 times more than the population's size
-        for i in xrange(5 * self.size_of_generation):
+        for i in xrange(self.params.initial_design):
             self.models.append(self.get_random_model())
 
         # if there was initial model
@@ -335,6 +337,17 @@ class GA(object):
             mutation_strength, mutation_rate, [
                 (ind, -sgn) for ind, sgn in inds_and_signs])
 
+        if self.cur_ff_it < self.params.max_iter:
+            new_model_1.get_fitness_func_value(self.log_file_2, self.start_time)
+        else:
+            new_model_1.fitness_func_value = 1e15
+        self.cur_ff_it += 1
+        if self.cur_ff_it < self.params.max_iter:
+            new_model_2.get_fitness_func_value(self.log_file_2, self.start_time)
+        else:
+            new_model_2.fitness_func_value = 1e15
+        self.cur_ff_it += 1
+    
         # if change is good then we increase prob to choose it again
         if new_model_1.get_fitness_func_value(self.log_file_2, self.start_time
         ) < new_model_2.get_fitness_func_value(self.log_file_2, self.start_time):
@@ -360,10 +373,21 @@ class GA(object):
 
         If size of current population is bigger than size, then we discard the worst.
         """
+        for model in self.models:
+            if model.sfs is None:
+                if self.cur_ff_it >= self.params.max_iter:
+                    model.fitness_func_value = None
+                else: 
+                    model.get_fitness_func_value(self.log_file_2, self.start_time)
+                self.cur_ff_it += 1
+                        
         self.models = sorted(
-            self.models, key=lambda x: x.get_fitness_func_value(self.log_file_2, self.start_time))[:size]
-        if print_iter:
-            support.write_to_file(self.log_file,
+            self.models, key=lambda x: 1e15 if x.fitness_func_value is None else x.fitness_func_value)
+        for model in self.models:
+            if model.fitness_func_value is None:
+                model.fitness_func_value = 1e15
+                model.aic_score = 1e15
+        support.write_to_file(self.log_file,
                                   '\n\nIteration #' + str(self.cur_iteration) + '.')
 
         support.print_set_of_models(self.log_file, list(enumerate(self.models)), 
@@ -426,8 +450,7 @@ class GA(object):
 
     def is_stoped(self):
         """Check if we need to stop."""
-        return self.without_changes >= self.it_without_changes_to_stop_ga or (
-            self.models[0].get_number_of_params() - int(not self.params.multinom) == 0)
+        return self.cur_ff_it >= self.params.max_iter
 
     def check_best_aic(self, final=True):
         """Check if we have best by AIC model on current iteration.
@@ -542,22 +565,22 @@ class GA(object):
 
         self.print_and_draw_best_model() 
 
-        # try to make better mutated and crossed models, random are so by
-        # definition
-        if self.without_changes == self.it_without_changes_to_stop_ga / 2 or self.is_stoped():
-            prev_value_of_fit = self.best_fitness_value()
-            support.write_to_file(
-                self.log_file,
-                '\nTime to normalize models with optmal_sfs_scaling:')
-            for model in new_models:
-                if model.info != 'r':
-                    model.normalize_by_Nref()
-            self.select(self.size_of_generation, print_iter=False)
-
-        # update our adaptive mutation_rate and print it to log file
-        self.update_mutation_rate_and_strength(prev_value_of_fit)
-        self.print_mutation_rate_and_strength()
-        self.check_best_aic()
+#        # try to make better mutated and crossed models, random are so by
+#        # definition
+#        if self.without_changes == self.it_without_changes_to_stop_ga / 2 or self.is_stoped():
+#            prev_value_of_fit = self.best_fitness_value()
+#            support.write_to_file(
+#                self.log_file,
+#                '\nTime to normalize models with optmal_sfs_scaling:')
+#            for model in new_models:
+#                if model.info != 'r':
+#                    model.normalize_by_Nref()
+#            self.select(self.size_of_generation, print_iter=False)
+#
+#        # update our adaptive mutation_rate and print it to log file
+#        self.update_mutation_rate_and_strength(prev_value_of_fit)
+#        self.print_mutation_rate_and_strength()
+#        self.check_best_aic()
 
 
         # check if we get stuck
@@ -656,6 +679,7 @@ class GA(object):
                     '\nTry to improve best model (' +
                     self.params.optimize_name +
                     ')')
+                ls_t1 = time.time()
                 try: # catch error of `Factor is exactly singular`
                     if self.params.optimize_name != 'hill_climbing':
                         if self.out_dir is not None:
@@ -672,7 +696,13 @@ class GA(object):
                         support.write_log(self.log_file, 
                                 'Local search failed of the following error: Factor is exactly singular.')
                     self.models[0] = best_model
-                        
+                ls_t2 = time.time()
+                support.write_to_file(
+                    self.log_file,
+                    '\nTime for local search (sec):')
+                support.write_to_file(
+                    self.log_file,
+                    '\n'+ str(ls_t2 - ls_t1))     
             if not self.run_ls:
                 self.run_ls = True
 
