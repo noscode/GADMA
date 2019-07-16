@@ -299,6 +299,7 @@ class GA(object):
         # generate random models 5 times more than the population's size
         for i in xrange(self.params.initial_design):
             self.models.append(self.get_random_model())
+            self.models[-1].get_fitness_func_value()
 
         # if there was initial model
         if self.one_initial_model is not None:
