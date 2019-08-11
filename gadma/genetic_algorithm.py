@@ -338,12 +338,12 @@ class GA(object):
             mutation_strength, mutation_rate, [
                 (ind, -sgn) for ind, sgn in inds_and_signs])
 
-        if self.cur_ff_it < self.params.max_iter:
+        if self.params.max_iter is None or self.cur_ff_it < self.params.max_iter:
             new_model_1.get_fitness_func_value(self.log_file_2, self.start_time)
         else:
             new_model_1.fitness_func_value = 1e15
         self.cur_ff_it += 1
-        if self.cur_ff_it < self.params.max_iter:
+        if self.params.max_iter is None or self.cur_ff_it < self.params.max_iter:
             new_model_2.get_fitness_func_value(self.log_file_2, self.start_time)
         else:
             new_model_2.fitness_func_value = 1e15
@@ -376,7 +376,7 @@ class GA(object):
         """
         for model in self.models:
             if model.sfs is None:
-                if self.cur_ff_it >= self.params.max_iter:
+                if self.params.max_iter is not None and self.cur_ff_it >= self.params.max_iter:
                     model.fitness_func_value = None
                 else: 
                     model.get_fitness_func_value(self.log_file_2, self.start_time)
@@ -451,6 +451,9 @@ class GA(object):
 
     def is_stoped(self):
         """Check if we need to stop."""
+        if self.params.max_iter is None:
+            return self.without_changes >= self.it_without_changes_to_stop_ga or (
+                self.models[0].get_number_of_params() - int(not self.params.multinom) == 0)
         return self.cur_ff_it >= self.params.max_iter
 
     def check_best_aic(self, final=True):

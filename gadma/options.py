@@ -142,8 +142,8 @@ class Options_storage:
         self.pil_available = False
         self.moments_available = False
 
-        self.max_iter = 100
-	self.initial_design = 100
+        self.max_iter = None
+	self.initial_design = 50
 
     def from_file(self, input_filename):
         with open(input_filename) as f:
