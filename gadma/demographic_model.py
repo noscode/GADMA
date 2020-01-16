@@ -50,6 +50,7 @@ class Period(object):
                  sizes_of_populations,
                  growth_types=None,
                  migration_rates=None,
+                 inbreeding_coefs=None,
                  is_first_period=False,
                  is_split_of_population=False):
         '''
@@ -75,6 +76,7 @@ class Period(object):
         else:
             self.growth_types = growth_types
         self.migration_rates = migration_rates
+        self.inbreeding_coefs = inbreeding_coefs
         self.is_first_period = is_first_period
         self.is_split_of_population = is_split_of_population
 
@@ -84,7 +86,8 @@ class Period(object):
         elif self.is_split_of_population:
             self.number_of_parameters = 1
         else:
-            self.number_of_parameters = 1 + self.number_of_populations * (2 - self.only_sudden) + (
+            help_coef = 2 - self.only_sudden + int(self.inbreeding_coefs is not None)
+            self.number_of_parameters = 1 + self.number_of_populations * help_coef + (
                 0 if self.migration_rates is None else
                 (2 if self.number_of_populations == 2 else 6))
 
@@ -112,6 +115,10 @@ class Period(object):
                             self.migration_rates[i][j], bounds.min_M / N_A)
                         self.migration_rates[i][j] = min(
                             self.migration_rates[i][j], bounds.max_M / N_A)
+        if self.inbreeding_coefs is not None:
+            for i in range(self.number_of_populations):
+                self.inbreeding_coefs[i] = max(self.inbreeding_coefs[i], 0)
+                self.inbreeding_coefs[i] = min(self.inbreeding_coefs[i], 1)
 
     def populations(self):
         """Iterator over populations."""
@@ -156,33 +163,45 @@ class Period(object):
             self.growth_types[param_index -
                               self.number_of_populations - 1] %= 3
         else:
-            i = param_index - (1 + int(not self.only_sudden)) * self.number_of_populations - 1
-
-            def find_pos(i):
-                x = 0
-                y = 0
-                for x in range(self.number_of_populations):
-                    for y in range(self.number_of_populations):
-                        if i == 0 and x != y:
-                            return x, y
-                        if x != y:
-                            i -= 1
-
-            x, y = find_pos(i)
-            size_of_pop = self.get_sizes_of_populations()[x]
-            if self.migration_rates[x][y] == 0 and sign == 1:
-                self.migration_rates[x][y] = np.random.uniform(
-                    bounds.min_M / N_A, bounds.max_M / size_of_pop)
-            else:
-                self.migration_rates[x][y]
-                self.migration_rates[x][
-                    y] *= 1 + sign * change
-                self.migration_rates[x][y] = max(
-                    self.migration_rates[x][y], bounds.min_M / N_A)
-                self.migration_rates[x][y] = min(
-                    self.migration_rates[x][y], bounds.max_M / N_A)
-            if self.migration_rates[x][y] * size_of_pop < 1e-3 and sign == -1:
-                self.migration_rates[x][y] *= random.choice([0, 1])
+            number_of_migs = 0 if self.migration_rates is None else (
+                self.number_of_populations ** 2 - self.number_of_populations)
+            border = (2 + self.only_sudden) * self.number_of_populations + number_of_migs 
+            # migrations
+            if param_index <= border:
+                i = param_index - (1 + int(not self.only_sudden)) * self.number_of_populations - 1
+    
+                def find_pos(i):
+                    x = 0
+                    y = 0
+                    for x in range(self.number_of_populations):
+                        for y in range(self.number_of_populations):
+                            if i == 0 and x != y:
+                                return x, y
+                            if x != y:
+                                i -= 1
+    
+                x, y = find_pos(i)
+                size_of_pop = self.get_sizes_of_populations()[x]
+                if self.migration_rates[x][y] == 0 and sign == 1:
+                    self.migration_rates[x][y] = np.random.uniform(
+                        bounds.min_M / N_A, bounds.max_M / size_of_pop)
+                else:
+                    self.migration_rates[x][y]
+                    self.migration_rates[x][
+                        y] *= 1 + sign * change
+                    self.migration_rates[x][y] = max(
+                        self.migration_rates[x][y], bounds.min_M / N_A)
+                    self.migration_rates[x][y] = min(
+                        self.migration_rates[x][y], bounds.max_M / N_A)
+                if self.migration_rates[x][y] * size_of_pop < 1e-3 and sign == -1:
+                    self.migration_rates[x][y] *= random.choice([0, 1])
+            else: # inbreeding coefs
+                ind = param_index - border - 1
+                self.inbreeding_coefs[ind] *= 1 + sign * change 
+                self.inbreeding_coefs[ind] = max(
+                    self.inbreeding_coefs[ind], 0)
+                self.inbreeding_coefs[ind] = min(
+                    self.inbreeding_coefs[ind], 1)
 
     def __str__(self):
         """String representation of period.
@@ -210,9 +229,13 @@ class Period(object):
             mig_str = ''
         else:
             mig_str = ', ' + migr_float_representation(self.migration_rates)
+        if self.inbreeding_coefs is not None:
+            inb_str = ', Fs=[' + list_float_representation(self.inbreeding_coefs) + ']' 
+        else:
+            inb_str = ''
         return '[ ' + float_representation(self.time) + ', ' + \
             list_float_representation(self.get_sizes_of_populations()) + ', ' + \
-            str(self.growth_types)  + mig_str + ' ]'
+            str(self.growth_types)  + mig_str + ' ]' + inb_str
 
 
 class Split(Period):
@@ -484,6 +507,13 @@ class Demographic_model:
                         self.generate_random_value(self.params.min_N, self.params.max_N, 'n')
                         for x in range(num_of_pops)
                     ]
+                    if self.params.inbreeding and i == number_of_periods - 1:
+                        inbreeding_coefs = []
+                        for i in range(self.number_of_populations):
+                            inbreeding_coefs.append(self.generate_random_value(0, 1, 's'))
+                    else:
+                        inbreeding_coefs = None
+ 
                     self.add_period(
                         Period(
                             time=self.generate_random_value(
@@ -494,7 +524,8 @@ class Demographic_model:
                                 for x in range(num_of_pops)
                             ],
                             migration_rates=None if self.params.no_mig else self.generate_migration_rates(
-                                sizes_of_pops)))
+                                sizes_of_pops),
+                            inbreeding_coefs=inbreeding_coefs))
             for i, period in enumerate(self.periods):
                 period.time = max(period.time, N_A * self.params.min_T)
                 period.time = min(period.time, N_A * self.params.max_T)
@@ -520,7 +551,6 @@ class Demographic_model:
                             period.migration_rates[p][p2], self.params.min_M / N_A)
                         period.migration_rates[p][p2] = min(
                             period.migration_rates[p][p2], self.params.max_M / N_A)
-
         self.normalize_by_Nref()
 
         self.info = 'r'
@@ -658,6 +688,9 @@ class Demographic_model:
                     period.migration_rates[2][0] = vector[cur_index + 4]
                     period.migration_rates[2][1] = vector[cur_index + 5]
                     cur_index += 6
+            if period.inbreeding_coefs is not None:
+                period.inbreeding_coefs = copy.copy(vector[cur_index:cur_index + self.number_of_populations])
+                cur_index += self.number_of_populations
 
         for i in range(self.number_of_periods):
             self.periods[i].check_params(self.params, self.get_N_A())
@@ -1669,8 +1702,14 @@ class Demographic_model:
                         m32=0 if period.migration_rates is None else
                         period.migration_rates[2][1],
                         theta0=theta)
-        sfs = dadi.Spectrum.from_phi(
-            phi, ns, [xx] * self.number_of_populations)
+        if self.params.inbreeding:
+            sfs = dadi.Spectrum.from_phi_inbreeding(
+                phi, ns, [xx] * self.number_of_populations,
+                Fs=period.inbreeding_coefs, 
+                ploidys=[2] * self.number_of_populations)
+        else:
+            sfs = dadi.Spectrum.from_phi(
+                phi, ns, [xx] * self.number_of_populations)
         return sfs
 
     def code_of_main_to_file(self, mode, filename):
@@ -1739,7 +1778,7 @@ class Demographic_model:
                 if self.is_custom_model:
                     output.write('Nref = ' + str(self.popt[-1]) + '# It is also optimized parameter by GADMA\n')
                     output.write(
-                        'll_model = Nref * dadi.Inference.ll(model, data)\n')
+                        'll_model = Nref * %s.Inference.ll(model, data)\n' % mode)
                     multinom_flag = False
                 else:
                     output.write(
@@ -1974,8 +2013,18 @@ class Demographic_model:
                             ms_index += 6
                         if not all_sudden_later or (pos+1 != len(self.periods) and self.periods[pos+1].is_split_of_population):
                             output.write('\tbefore = after\n')
-                output.write('\tsfs = dadi.Spectrum.from_phi(phi, ns, [xx]*' + str(
-                    self.params.number_of_populations) + ')\n\treturn sfs\n')
+                if self.params.inbreeding:
+                    fs_index = max(ms_index, ts_index)
+                    Fs_labels = '[' + ','.join(par_labels[fs_index: fs_index+self.number_of_populations]) + ']'
+                    output.write(
+                        '\tsfs = dadi.Spectrum.from_phi_inbreeding(phi, ns, [xx]*' + str(
+                        self.params.number_of_populations) + ', Fs=' + Fs_labels + ', ploidys=[2]*' +str(
+                        self.params.number_of_populations) + ')\n')
+                else:
+                    output.write('\tsfs = dadi.Spectrum.from_phi(phi, ns, [xx]*' + str(
+                        self.params.number_of_populations) + ')\n')
+
+                output.write('\treturn sfs\n')
         self.code_of_main_to_file('dadi', filename)
 
             
@@ -2265,7 +2314,8 @@ class Demographic_model:
                     vector.append(period.migration_rates[1][2])
                     vector.append(period.migration_rates[2][0])
                     vector.append(period.migration_rates[2][1])
-
+                if period.inbreeding_coefs is not None:
+                    vector.extend(period.inbreeding_coefs)
         if self.params.multinom:
 #            vector = vector[1:]
             self.normalize_by_Nref(Nref, remove_fitness_func_value=False)
@@ -2311,6 +2361,9 @@ class Demographic_model:
         params_labels_str = ns_labels
         params_labels_str.extend(ts_labels)
         params_labels_str.extend(ms_labels)
+        if self.params.inbreeding:
+            for i in range(self.number_of_populations):
+                params_labels_str.append('f_{0:d}'.format(i))
         return params_labels_str
 
     def get_bounds_to_dadi(self):

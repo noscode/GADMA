@@ -62,6 +62,7 @@ class Options_storage:
         self.moments_scenario = True
         self.relative_params = False
         self.no_mig = False
+        self.inbreeding = False
 
         #Custom model
         self.model_func_file = None
@@ -323,6 +324,8 @@ class Options_storage:
                     self.boot_dir = value if value.lower() != 'none' else None
                 elif identity == 'vmin':
                     self.vmin = float(value.lower()) if value.lower() != 'none' else None
+                elif identity == 'inbreeding':
+                    self.inbreeding = value.lower() == 'true'
                 else:
                     support.error(
                         'Cannot recognize identifier: ' +
