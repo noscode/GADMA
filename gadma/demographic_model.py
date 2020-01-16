@@ -117,8 +117,8 @@ class Period(object):
                             self.migration_rates[i][j], bounds.max_M / N_A)
         if self.inbreeding_coefs is not None:
             for i in range(self.number_of_populations):
-                self.inbreeding_coefs[i] = max(self.inbreeding_coefs[i], 0)
-                self.inbreeding_coefs[i] = min(self.inbreeding_coefs[i], 1)
+                self.inbreeding_coefs[i] = max(self.inbreeding_coefs[i], 0 + 1e-15)
+                self.inbreeding_coefs[i] = min(self.inbreeding_coefs[i], 1 - 1e-15)
 
     def populations(self):
         """Iterator over populations."""
@@ -199,9 +199,9 @@ class Period(object):
                 ind = param_index - border - 1
                 self.inbreeding_coefs[ind] *= 1 + sign * change 
                 self.inbreeding_coefs[ind] = max(
-                    self.inbreeding_coefs[ind], 0)
+                    self.inbreeding_coefs[ind], 0 + 1e-15)
                 self.inbreeding_coefs[ind] = min(
-                    self.inbreeding_coefs[ind], 1)
+                    self.inbreeding_coefs[ind], 1 - 1e-15)
 
     def __str__(self):
         """String representation of period.
@@ -230,7 +230,7 @@ class Period(object):
         else:
             mig_str = ', ' + migr_float_representation(self.migration_rates)
         if self.inbreeding_coefs is not None:
-            inb_str = ', Fs=[' + list_float_representation(self.inbreeding_coefs) + ']' 
+            inb_str = ', Fs=' + list_float_representation(self.inbreeding_coefs)
         else:
             inb_str = ''
         return '[ ' + float_representation(self.time) + ', ' + \
@@ -1460,6 +1460,7 @@ class Demographic_model:
         return_value = self.fitness_func_value
         if data_sample is not None:
             self.has_changed()
+        print(return_value, self)
         return return_value
 
     def get_aic_score(self, data_sample=None):
