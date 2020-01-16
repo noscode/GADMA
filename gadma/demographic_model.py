@@ -1460,7 +1460,6 @@ class Demographic_model:
         return_value = self.fitness_func_value
         if data_sample is not None:
             self.has_changed()
-        print(return_value, self)
         return return_value
 
     def get_aic_score(self, data_sample=None):
