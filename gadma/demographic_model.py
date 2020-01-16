@@ -82,7 +82,7 @@ class Period(object):
 
         # array to remember changes of parameters during mutations
         if self.is_first_period:
-            self.number_of_parameters = 1
+            self.number_of_parameters = 1 + int(self.inbreeding_coefs is not None)
         elif self.is_split_of_population:
             self.number_of_parameters = 1
         else:
@@ -91,8 +91,15 @@ class Period(object):
                 0 if self.migration_rates is None else
                 (2 if self.number_of_populations == 2 else 6))
 
+    def check_inbreeding(self):
+        if self.inbreeding_coefs is not None:
+            for i in range(self.number_of_populations):
+                self.inbreeding_coefs[i] = max(self.inbreeding_coefs[i], 0 + 1e-15)
+                self.inbreeding_coefs[i] = min(self.inbreeding_coefs[i], 1 - 1e-15)
+
     def check_params(self, bounds, N_A):
         if self.is_first_period:
+            self.check_inbreeding()
             return
         if self.is_split_of_population:
             self.check_prop(bounds.min_N, N_A)
@@ -115,10 +122,7 @@ class Period(object):
                             self.migration_rates[i][j], bounds.min_M / N_A)
                         self.migration_rates[i][j] = min(
                             self.migration_rates[i][j], bounds.max_M / N_A)
-        if self.inbreeding_coefs is not None:
-            for i in range(self.number_of_populations):
-                self.inbreeding_coefs[i] = max(self.inbreeding_coefs[i], 0 + 1e-15)
-                self.inbreeding_coefs[i] = min(self.inbreeding_coefs[i], 1 - 1e-15)
+        self.check_inbreeding()
 
     def populations(self):
         """Iterator over populations."""
@@ -137,10 +141,14 @@ class Period(object):
         if self.is_split_of_population:
             self.mutate(change, sign, N_A, bounds.min_N)
 
-        # if it is first population then there is only one parameter: size of
-        # ancestral population
+        # if it is first population then there is only two parameters:
+        # size of ancestral population and inbreedings if they are
         elif self.is_first_period:
-            self.get_sizes_of_populations()[0] *= 1 + sign * change
+            if param_index == 0:
+                self.get_sizes_of_populations()[0] *= 1 + sign * change
+            else:
+                self.inbreeding_coefs[param_index - 1] *= 1 + sign * change
+                self.check_inbreeding()
 
         # otherwise change corresponding parameter
         elif param_index == 0:
@@ -198,10 +206,7 @@ class Period(object):
             else: # inbreeding coefs
                 ind = param_index - border - 1
                 self.inbreeding_coefs[ind] *= 1 + sign * change 
-                self.inbreeding_coefs[ind] = max(
-                    self.inbreeding_coefs[ind], 0 + 1e-15)
-                self.inbreeding_coefs[ind] = min(
-                    self.inbreeding_coefs[ind], 1 - 1e-15)
+                self.check_inbreeding()
 
     def __str__(self):
         """String representation of period.
@@ -466,7 +471,7 @@ class Demographic_model:
                     self.popt_len += 1
                     self.number_of_changes = np.append(self.number_of_changes, 0.0)
 #                if self.params.p_ids is not None:
-#                    self.normalize_by_Nref(1 / Nref)
+#                    self.normalize_by_Nrief(1 / Nref)
 #                    for i, (low_bound, upp_bound) in enumerate(zip(self.lower_bound, self.upper_bound)):
 #                        self.popt[i] = max(low_bound, self.popt[i])
 #                        self.popt[i] = min(upp_bound, self.popt[i])
@@ -479,11 +484,17 @@ class Demographic_model:
                 N_A = self.generate_random_value(self.params.min_N, self.params.max_N, 'n')
             else:
                 N_A = 1.0
+            # check if we need inbreeding in first period
+            if self.params.inbreeding and self.number_of_populations == 1 and structure[0] == 1:
+                inbreeding_coefs = [self.generate_random_value(0, 1, 's')]
+            else:
+                inbreeding_coefs = None
             self.add_period(
                 Period(
                     time=0,
                     sizes_of_populations=[N_A],
-                    is_first_period=True))
+                    is_first_period=True,
+                    inbreeding_coefs=inbreeding_coefs))
             # add other periods
             for i in range(structure[0] - 1):
                 self.add_period(
