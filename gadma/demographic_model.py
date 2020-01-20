@@ -1201,6 +1201,11 @@ class Demographic_model:
                     migration_rates=copy.deepcopy(
                         period_to_divide.migration_rates),
                     growth_types=None if self.params.only_sudden else pops_exp))
+        # Additional check for inbreeding
+        if self.params.inbreeding and period_index_to_divide == self.number_of_periods - 1:
+            self.periods[-1].inbreeding_coefs = self.periods[-2].inbreeding_coefs
+            self.periods[-2].inbreeding_coefs = None
+
         self.number_of_periods += 1
         if self.split_1_pos is not None and period_index_to_divide < self.split_1_pos:
             if self.split_2_pos is not None:
