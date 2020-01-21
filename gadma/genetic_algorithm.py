@@ -430,9 +430,8 @@ class GA(object):
 
     def is_stoped(self):
         """Check if we need to stop."""
-        case_of_one_period_for_one_pop = - int(not self.params.multinom)
         models_structure = self.models[0].get_structure()
-        case_of_one_period_for_one_pop += int(len(models_structure) == 1 and models_structure[0] == 1)
+        case_of_one_period_for_one_pop = int(len(models_structure) == 1 and models_structure[0] == 1)
         return self.without_changes >= self.it_without_changes_to_stop_ga or case_of_one_period_for_one_pop
 
     def check_best_aic(self, final=True):

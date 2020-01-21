@@ -79,6 +79,8 @@ class Period(object):
         self.inbreeding_coefs = inbreeding_coefs
         self.is_first_period = is_first_period
         self.is_split_of_population = is_split_of_population
+        if self.is_first_period or self.is_split_of_population:
+            time = 0
 
         # array to remember changes of parameters during mutations
         if self.is_first_period:
@@ -98,6 +100,9 @@ class Period(object):
                 self.inbreeding_coefs[i] = min(self.inbreeding_coefs[i], 1 - 1e-15)
 
     def check_params(self, bounds, N_A):
+        if self.is_first_period or self.is_split_of_population:
+            time = 0
+
         if self.is_first_period:
             self.check_inbreeding()
             return
@@ -220,9 +225,13 @@ class Period(object):
         else:
         [ time, [sizes of populations], [growth types], [migration rates] ]
         """
+        if self.inbreeding_coefs is not None:
+            inb_str = ', Fs=' + list_float_representation(self.inbreeding_coefs)
+        else:
+            inb_str = '' 
         if self.is_first_period:
             return '[ ' + list_float_representation(
-                [self.get_sizes_of_populations()[0]]) + ' ]'
+                [self.get_sizes_of_populations()[0]]) + ' ]' + inb_str
         if self.is_split_of_population:
             if self.split_prop is None:
                 return '[ Split ]'
@@ -234,10 +243,6 @@ class Period(object):
             mig_str = ''
         else:
             mig_str = ', ' + migr_float_representation(self.migration_rates)
-        if self.inbreeding_coefs is not None:
-            inb_str = ', Fs=' + list_float_representation(self.inbreeding_coefs)
-        else:
-            inb_str = ''
         return '[ ' + float_representation(self.time) + ', ' + \
             list_float_representation(self.get_sizes_of_populations()) + ', ' + \
             str(self.growth_types)  + mig_str + ' ]' + inb_str
@@ -382,7 +387,7 @@ class Demographic_model:
         self.split_2_pos = None
 
 
-        self.dt_fac = 0.1  # for moments
+        self.dt_fac = 0.1  #  for moments
         self.sfs = None
         self.fitness_func_value = None
         self.aic_score = None
@@ -497,13 +502,18 @@ class Demographic_model:
                     inbreeding_coefs=inbreeding_coefs))
             # add other periods
             for i in range(structure[0] - 1):
+                if self.params.inbreeding and len(structure) == 1 and i == structure[0] - 2:
+                    inbreeding_coefs = [self.generate_random_value(0, 1, 's')]
+                else:
+                    inbreeding_coefs = None
                 self.add_period(
                     Period(
                         time=self.generate_random_value(
                             self.params.min_T, self.params.max_T, 't'),
                         sizes_of_populations=[self.generate_random_value(
                             self.params.min_N, self.params.max_N, 'n')],
-                        growth_types= None if self.params.only_sudden else [random.choice([0, 1, 2])]))
+                        growth_types= None if self.params.only_sudden else [random.choice([0, 1, 2])],
+                        inbreeding_coefs = inbreeding_coefs))
             for num_of_pops, number_of_periods in enumerate(structure[1:]):
                 num_of_pops += 2
                 self.add_period(
@@ -931,7 +941,7 @@ class Demographic_model:
             for i in range(self.number_of_periods):
                 for j in range(self.periods[i].number_of_parameters):
                     # ignore N_A if we are multinom
-                    if self.periods[i].is_first_period and self.params.multinom:
+                    if self.periods[i].is_first_period and self.params.multinom and j==0:
                         continue
                     self.param_ids.append((i, j))
             self.number_of_changes = np.array(
@@ -1153,11 +1163,14 @@ class Demographic_model:
                 range(start_index_to_divide, final_index_to_divide), p=p)
 
         # add new period by spliting chosen period to two periods
+        # we add new period in front to make things easier with inbreeding at the end
         total_time = self.get_total_time()
+        print(total_time)
         if period_index_to_divide == 0:
             if total_time == 0:
                 time = np.random.uniform(
                     self.params.min_T, self.params.max_T) * self.get_N_A()
+                print(time)
             else:
                 time = total_time / self.number_of_periods
             self.periods.insert(
@@ -1166,8 +1179,8 @@ class Demographic_model:
                     time=time,
                     sizes_of_populations=copy.deepcopy(
                         self.periods[0].get_sizes_of_populations()),
-                    growth_types=None if self.params.only_sudden else [0]))
-            period_index_to_divide = 0
+                    growth_types=None if self.params.only_sudden else [0],
+                    inbreeding_coefs=copy.deepcopy(self.periods[period_index_to_divide].inbreeding_coefs)))
         else:
             period_to_divide = self.periods[period_index_to_divide]
             period_to_divide.time /= 2.0
@@ -1200,11 +1213,8 @@ class Demographic_model:
                     sizes_of_populations=pops_sizes,
                     migration_rates=copy.deepcopy(
                         period_to_divide.migration_rates),
-                    growth_types=None if self.params.only_sudden else pops_exp))
-        # Additional check for inbreeding
-        if self.params.inbreeding and period_index_to_divide == self.number_of_periods - 1:
-            self.periods[-1].inbreeding_coefs = self.periods[-2].inbreeding_coefs
-            self.periods[-2].inbreeding_coefs = None
+                    growth_types=None if self.params.only_sudden else pops_exp,
+                    inbreeding_coefs=copy.deepcopy(period_to_divide.inbreeding_coefs)))
 
         self.number_of_periods += 1
         if self.split_1_pos is not None and period_index_to_divide < self.split_1_pos:
@@ -1222,7 +1232,13 @@ class Demographic_model:
         number_of_changes = list(self.number_of_changes)
         index_in_num_of_ch = sum([p.number_of_parameters for p in self.periods[
                                  :ind]]) - int(self.params.multinom)
-        for i in range(self.periods[ind].number_of_parameters):
+        number_of_par_to_add = self.periods[ind].number_of_parameters
+        if self.periods[period_index_to_divide].inbreeding_coefs is not None:
+            self.periods[period_index_to_divide].inbreeding_coefs = None
+            self.periods[period_index_to_divide].number_of_parameters -= self.number_of_populations
+            index_in_num_of_ch -= self.number_of_populations
+            number_of_par_to_add -= self.number_of_populations
+        for i in range(number_of_par_to_add):
             number_of_changes.insert(index_in_num_of_ch + i, 0)
 
         self.lower_bound, self.upper_bound = None, None
@@ -1721,7 +1737,7 @@ class Demographic_model:
         if self.params.inbreeding:
             sfs = dadi.Spectrum.from_phi_inbreeding(
                 phi, ns, [xx] * self.number_of_populations,
-                Fs=period.inbreeding_coefs, 
+                Fs=self.periods[-1].inbreeding_coefs, 
                 ploidys=[2] * self.number_of_populations)
         else:
             sfs = dadi.Spectrum.from_phi(
@@ -2330,8 +2346,8 @@ class Demographic_model:
                     vector.append(period.migration_rates[1][2])
                     vector.append(period.migration_rates[2][0])
                     vector.append(period.migration_rates[2][1])
-                if period.inbreeding_coefs is not None:
-                    vector.extend(period.inbreeding_coefs)
+            if period.inbreeding_coefs is not None:
+                vector.extend(period.inbreeding_coefs)
         if self.params.multinom:
 #            vector = vector[1:]
             self.normalize_by_Nref(Nref, remove_fitness_func_value=False)
