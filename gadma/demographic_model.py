@@ -490,7 +490,7 @@ class Demographic_model:
             else:
                 N_A = 1.0
             # check if we need inbreeding in first period
-            if self.params.inbreeding and self.number_of_populations == 1 and structure[0] == 1:
+            if self.params.inbreeding and len(structure) == 1 and structure[0] == 1:
                 inbreeding_coefs = [self.generate_random_value(0, 1, 's')]
             else:
                 inbreeding_coefs = None
