@@ -74,6 +74,10 @@ Epsilon : {27}
 #	Default: 100
 Stop iteration : {28}
 
+#	Upper bound for number of log likelihood evaluations.
+#	Could be usefull for some comparisons with other optimizations.
+#	Default: None (no bound)
+Maximum number of evaluations: {29}
 
 
 #	Parameters for local search algorithms (exclude hill climbing)

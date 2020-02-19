@@ -134,7 +134,7 @@ def get_95_confidence_intervals(func_ex, p0, data, pts=None, log=False, multinom
 def optimize_ga(number_of_params, data, model_func, pts=None, lower_bound=None, upper_bound=None, p0=None,
                  multinom=True, p_ids = None, mutation_strength=0.2, const_for_mut_strength=1.1, mutation_rate=0.2, const_for_mut_rate=1.2,
                  epsilon=1e-2, stop_iter=100, size_of_generation_in_ga=10, frac_of_old_models=0.2, frac_of_mutated_models=0.3, 
-                 frac_of_crossed_models=0.3, optimization_name='optimize_log'):
+                 frac_of_crossed_models=0.3, optimization_name='optimize_log', maxeval=None, output_log_file=None):
     """
     Find optimized params to fit model to data using Genetic Algorithm.
     
@@ -201,6 +201,9 @@ def optimize_ga(number_of_params, data, model_func, pts=None, lower_bound=None, 
     optimization_name:      Name of local optimization that will be run after genetic 
                             algorithm. By default, it is 'optimize_log'. If None then no
                             local optimization is run.
+
+    maxeval:                Maximum number of logll evaluations
+    output_log_file:        Stream verbose log output into this filename. If None, no logging.
     """
     
     params = options.Options_storage()
@@ -214,6 +217,8 @@ def optimize_ga(number_of_params, data, model_func, pts=None, lower_bound=None, 
     params.upper_bound = upper_bound
     params.multinom = multinom or p_ids is None
     params.optimize_name = optimization_name
+    params.max_num_of_eval = maxeval
+    params.output_log_file = output_log_file
     
     #create normalize funcs
     if p_ids is None:

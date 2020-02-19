@@ -94,6 +94,10 @@ class Options_storage:
         self.stop_iter = 100
         self.epsilon = 1e-2
 
+        # just for logging evaluations
+        self.output_log_file = None
+        self.max_num_of_eval = None # maximum number of logll eval.
+
         # Local search
         self.optimize_name = 'optimize_powell'
 
@@ -323,6 +327,8 @@ class Options_storage:
                     self.boot_dir = value if value.lower() != 'none' else None
                 elif identity == 'vmin':
                     self.vmin = float(value.lower()) if value.lower() != 'none' else None
+                elif identity == 'maximum number of evaluations':
+                    self.max_num_of_eval = float(value.lower()) if value.lower() != 'none' else None
                 else:
                     support.error(
                         'Cannot recognize identifier: ' +
@@ -418,8 +424,8 @@ class Options_storage:
                     str(self.mutation_rate),
                     str(self.const_for_mut_rate),
                     str(self.epsilon),
-                    str(self.stop_iter)
-
+                    str(self.stop_iter),
+                    str(self.max_num_of_eval)
                 ))
 
     def save(self, out_dir):
