@@ -97,6 +97,7 @@ class GA(object):
         self.out_dir = None
         self.log_file = None
         self.evaluations_log = None
+        self.num_of_eval = 0
         self.best_model_by_aic = None
 
     def pickle_final_models(self, load=None):
@@ -287,6 +288,8 @@ class GA(object):
         self.select(size)
 
     def minus_log_likelihood(self, model):
+        if model.sfs is None:
+            self.num_of_eval += 1 # increase number of logll eval. when we actually do it
         if model.sfs is not None or self.evaluations_log is None:
             return model.get_fitness_func_value()
 
@@ -441,8 +444,10 @@ class GA(object):
 
     def is_stoped(self):
         """Check if we need to stop."""
+        num_of_eval_bound = False if self.params.max_num_of_eval is None else (
+                self.num_of_eval > self.params.max_num_of_eval)
         return self.without_changes >= self.it_without_changes_to_stop_ga or (
-            self.models[0].get_number_of_params() - int(not self.params.multinom) == 0)
+            self.models[0].get_number_of_params() - int(not self.params.multinom) == 0) or num_of_eval_bound
 
     def check_best_aic(self, final=True):
         """Check if we have best by AIC model on current iteration.
@@ -656,6 +661,7 @@ class GA(object):
             self.evaluations_log = params.output_log_file
         if self.evaluations_log is not None:
             open(self.evaluations_log, 'a').close()
+            support.write_to_file(self.evaluations_log, 'Total time', 'logLL', 'model', 'iteration time')
 
         # help functions
         def run_one_ga_and_one_ls():
