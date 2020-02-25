@@ -209,7 +209,8 @@ def optimize_ga(number_of_params, data, model_func, pts=None, lower_bound=None, 
     params = options.Options_storage()
     params.number_of_params = number_of_params
     params.input_data = data
-    params.ns = np.array(data.shape) - 1 
+    params.ns = np.array(data.shape) - 1
+    params.number_of_populations = len(params.ns) 
     params.model_func = model_func
     params.dadi_pts = pts
     params.moments_scenario = pts is None
@@ -227,7 +228,7 @@ def optimize_ga(number_of_params, data, model_func, pts=None, lower_bound=None, 
     else:
         params.p_ids = [x.lower()[0] for x in p_ids]
         params.normalize_funcs = []
-        for i in xrange(number_of_params):
+        for i in range(number_of_params):
             id_v = p_ids[i][0].lower()
             if id_v == 'n' or id_v == 't':
                 params.normalize_funcs.append(lambda x, y: x * y)

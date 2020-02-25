@@ -658,7 +658,7 @@ class GA(object):
             self.evaluations_log = os.path.join(self.out_dir, 'evaluations.log')
         else:
             self.log_file = None
-            self.evaluations_log = params.output_log_file
+            self.evaluations_log = self.params.output_log_file
         if self.evaluations_log is not None:
             open(self.evaluations_log, 'a').close()
             support.write_to_file(self.evaluations_log, 'Total time', 'logLL', 'model', 'iteration time')
