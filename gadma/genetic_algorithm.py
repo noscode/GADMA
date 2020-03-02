@@ -318,8 +318,13 @@ class GA(object):
             if self.params.size_of_generation > len(self.models):
                 self.select(self.params.size_of_generation)
             return
-        # generate random models 5 times more than the population's size
-        for i in range(5 * self.size_of_generation):
+        if self.params.num_init_pts is None:
+            # generate random models 5 times more than the population's size
+            num_of_init_models = 5 * self.size_of_generation
+        else:
+            num_of_init_models = self.params.num_init_pts
+
+        for i in range(num_of_init_models):
             self.models.append(self.get_random_model())
 
         # if there was initial model

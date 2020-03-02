@@ -97,6 +97,7 @@ class Options_storage:
         # just for logging evaluations
         self.output_log_file = None
         self.max_num_of_eval = None # maximum number of logll eval.
+        self.num_init_pts = None # can get value from Inference.optimize_ga
 
         # Local search
         self.optimize_name = 'optimize_log'
