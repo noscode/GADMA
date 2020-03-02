@@ -703,6 +703,8 @@ class Demographic_model:
         return self.lower_bound, self.upper_bound
 
     def run_local_search(self, name_of_search, filename, data_sample=None):
+        if name_of_search is None:
+            return
         if data_sample is None:
             data = self.params.input_data
         else:

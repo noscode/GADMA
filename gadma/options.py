@@ -99,7 +99,7 @@ class Options_storage:
         self.max_num_of_eval = None # maximum number of logll eval.
 
         # Local search
-        self.optimize_name = 'optimize_powell'
+        self.optimize_name = 'optimize_log'
 
         # Printing and drawing
         self.code_iter = 0

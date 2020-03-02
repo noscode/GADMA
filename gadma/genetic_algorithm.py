@@ -88,7 +88,7 @@ class GA(object):
 
         # options that can be False after restore
         self.run_before_ls = True
-        self.run_ls = True
+        self.run_ls = self.params.optimize_name is not None
 
         # variables for stops
         self.without_changes = 0
@@ -101,6 +101,8 @@ class GA(object):
         self.best_model_by_aic = None
 
     def pickle_final_models(self, load=None):
+        if self.out_dir is None:
+            return
         if load is None:
             pickle_file = os.path.join(self.out_dir, 'final_models_pickle')
             with (open(pickle_file, "wb")) as f:
@@ -672,7 +674,7 @@ class GA(object):
                         copy.deepcopy(self.models[0]), self.final_models)
             if not self.run_before_ls:
                 self.run_before_ls = True
-            if self.run_ls:
+            if self.run_ls and self.params.optimize_name is not None:
                 best_model = copy.deepcopy(self.models[0])
                 support.write_to_file(
                     self.log_file,
