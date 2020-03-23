@@ -384,22 +384,16 @@ class Demographic_model:
 
     def generate_random_value(self, low_bound, upp_bound, identificator=None):
         """Generate random value for different parameters of models"""
-        if identificator == 's':
+        if (identificator.lower() != 'n') or \
+                (low_bound == 0 and upp_bound == 1) \
+                or not (low_bound <= 1 <= upp_bound):
             return np.random.uniform(low_bound, upp_bound)
-        # if identificator == 'm' or identificator == 'n' or 't' or None
-        log = True
+    
         if low_bound <= 0:
-            low_bound = 1e-15
-        if identificator == 't':
-            normal = False
-        else:
-            normal = True
-
+            low_bound = 1e-15  # shift
+    
         mode = 1.0
-
-        # remember bounds and mean
-        l = low_bound # left bound
-        u = upp_bound # right bound
+    
         # mean
         if low_bound >= mode:
             m = low_bound
@@ -407,20 +401,20 @@ class Demographic_model:
             m = upp_bound
         else:
             m = mode
-        # determine random function and transform to log if need
-        if log:
-            l = np.log(l)
-            u = np.log(u)
-            m = np.log(m)
-        if normal:
-            random_generator = lambda a,b,c:  support.sample_from_truncated_normal(b, max(b-a, c-b) / 3, a, c)
+        # determine random function
+        l = np.log(low_bound)
+        u = np.log(upp_bound)
+        m = np.log(m)
+    
+        if identificator.lower() == 't': # Now not working it is uniform in first line
+            random_generator = lambda a, b, c: gadma.support.sample_from_truncated_normal(b, max(b - a, c - b) / 20, a, c)
         else:
-            random_generator = np.random.triangular
+            random_generator = lambda a, b, c: gadma.support.sample_from_truncated_normal(b, max(b - a, c - b) / 3, a, c)
+    
         # generate sample
         sample = random_generator(l, m, u)
-
-        if log:
-            sample = np.exp(sample)
+    
+        sample = np.exp(sample)
         return sample
 
     def init_random_model(self, structure):
