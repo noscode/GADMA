@@ -27,7 +27,7 @@ class GA(object):
             self,
             params,
             prefix=None,
-            one_initial_model=None):
+            initial_models=None):
         """Genetic algorithm class.
 
         params :    an object with parameters to work with
@@ -47,9 +47,6 @@ class GA(object):
         (Other fields in params are for Demographic model class)
         prefix :    prefix for output folder.
         """
-        # remember time of start
-        self.time_of_start = time.time()
-
         # all parameters
         self.params = params
 
@@ -60,7 +57,7 @@ class GA(object):
 
         self.prefix = prefix
         self.is_custom_model = self.params.initial_structure is None
-        self.one_initial_model = one_initial_model
+        self.initial_models = initial_models
         self.ll_precision = 1 - int(math.log(self.params.epsilon, 10))
 
         # our adaptive mutation_rate
@@ -88,7 +85,7 @@ class GA(object):
 
         # options that can be False after restore
         self.run_before_ls = True
-        self.run_ls = self.params.optimize_name is not None
+        self.run_ls = True
 
         # variables for stops
         self.without_changes = 0
@@ -96,14 +93,12 @@ class GA(object):
         # connected files and directories
         self.out_dir = None
         self.log_file = None
-        self.evaluations_log = None
-        self.num_of_eval = 0
         self.best_model_by_aic = None
 
     def pickle_final_models(self, load=None):
-        if self.out_dir is None:
-            return
         if load is None:
+            if self.out_dir is None:
+                return
             pickle_file = os.path.join(self.out_dir, 'final_models_pickle')
             with (open(pickle_file, "wb")) as f:
                 pickle.dump(self.final_models, f)
@@ -289,19 +284,6 @@ class GA(object):
         self.pickle_final_models(load=load_final_models_file)
         self.select(size)
 
-    def minus_log_likelihood(self, model):
-        if model.sfs is None:
-            self.num_of_eval += 1 # increase number of logll eval. when we actually do it
-        if model.sfs is not None or self.evaluations_log is None:
-            return model.get_fitness_func_value()
-
-        t1 = time.time()
-        value = model.get_fitness_func_value()
-        t2 = time.time()
-        support.write_to_file(self.evaluations_log, 
-                t1 - self.time_of_start, value, model, t2 - t1)
-        return value
-
     def init_first_population_of_models(self):
         """Get the first population of models to run genetic algorithm.
 
@@ -312,24 +294,19 @@ class GA(object):
         if self.prefix is not None and self.params.resume_dir is not None:
             self.restore()
 
-        if len(self.models) > 0:
-            for i in range(self.params.size_of_generation - len(self.models)):
-                self.models.append(self.get_random_model())
-            if self.params.size_of_generation > len(self.models):
-                self.select(self.params.size_of_generation)
-            return
-        if self.params.num_init_pts is None:
-            # generate random models 5 times more than the population's size
-            num_of_init_models = 5 * self.size_of_generation
+        # if there were initial models
+        if self.initial_models is not None:
+            self.models.extend(self.initial_models)
+            if len(self.models) > 0:
+                for i in range(self.params.size_of_generation - len(self.models)):
+                    self.models.append(self.get_random_model())
+                if self.params.size_of_generation > len(self.models):
+                    self.select(self.params.size_of_generation)
         else:
-            num_of_init_models = self.params.num_init_pts
+            # generate random models 5 times more than the population's size
+            for i in range(5 * self.size_of_generation):
+                self.models.append(self.get_random_model())
 
-        for i in range(num_of_init_models):
-            self.models.append(self.get_random_model())
-
-        # if there was initial model
-        if self.one_initial_model is not None:
-            self.models.append(self.one_initial_model)
         # sort by fintess function and select first size_of_generation models
         self.select(self.params.size_of_generation)
         self.print_mutation_rate_and_strength()
@@ -365,13 +342,16 @@ class GA(object):
                 (ind, -sgn) for ind, sgn in inds_and_signs])
 
         # if change is good then we increase prob to choose it again
-        if self.minus_log_likelihood(new_model_1) < self.minus_log_likelihood(new_model_2):
-            if self.minus_log_likelihood(model) > self.minus_log_likelihood(new_model_1):
+        if new_model_1.get_fitness_func_value(
+        ) < new_model_2.get_fitness_func_value():
+            if model.get_fitness_func_value(
+            ) > new_model_1.get_fitness_func_value():
                 for index, sign in inds_and_signs:
                     new_model_1.number_of_changes[index] -= 1
             return new_model_1
         else:
-            if self.minus_log_likelihood(model) > self.minus_log_likelihood(new_model_2):
+            if model.get_fitness_func_value(
+            ) > new_model_2.get_fitness_func_value():
                 for index, sign in inds_and_signs:
                     new_model_2.number_of_changes[index] -= 1
             return new_model_2
@@ -387,7 +367,7 @@ class GA(object):
         If size of current population is bigger than size, then we discard the worst.
         """
         self.models = sorted(
-            self.models, key=lambda x: self.minus_log_likelihood(x))[:size]
+            self.models, key=lambda x: x.get_fitness_func_value())[:size]
         if print_iter:
             support.write_to_file(self.log_file,
                                   '\n\nIteration #' + str(self.cur_iteration) + '.')
@@ -418,15 +398,16 @@ class GA(object):
                     mutation_rate, index_and_sign=(index, -sign))
                 new_model.info = new_model.info[:-1]
 
-            if self.minus_log_likelihood(new_model) < self.minus_log_likelihood(model):
+            if new_model.get_fitness_func_value(
+            ) < model.get_fitness_func_value():
                 new_new_model = copy.deepcopy(new_model)
                 index, sign = new_new_model.mutate_one(
                     mutation_rate, (index, sign))
                 new_new_model.info = new_new_model.info[:-1]
                 counter = 0
                 # if improvement is good then try again
-                while (self.minus_log_likelihood(new_new_model) <
-                       self.minus_log_likelihood(new_model)) and counter < 50:
+                while (new_new_model.get_fitness_func_value() <
+                       new_model.get_fitness_func_value()) and counter < 50:
                     new_model = new_new_model
                     new_model.number_of_changes[index] -= 1
                     new_new_model = copy.deepcopy(new_new_model)
@@ -447,14 +428,12 @@ class GA(object):
 
     def best_fitness_value(self):
         """Get best fitness value of current population of models."""
-        return self.minus_log_likelihood(self.best_model())
+        return self.best_model().get_fitness_func_value()
 
     def is_stoped(self):
         """Check if we need to stop."""
-        num_of_eval_bound = False if self.params.max_num_of_eval is None else (
-                self.num_of_eval > self.params.max_num_of_eval)
         return self.without_changes >= self.it_without_changes_to_stop_ga or (
-            self.models[0].get_number_of_params() - int(not self.params.multinom) == 0) or num_of_eval_bound
+            self.models[0].get_number_of_params() - int(not self.params.multinom) == 0)
 
     def check_best_aic(self, final=True):
         """Check if we have best by AIC model on current iteration.
@@ -527,7 +506,7 @@ class GA(object):
         # create probabilities to choose models for crossing and mutation
         p = []
         for m in self.models:
-            p.append(self.minus_log_likelihood(m))
+            p.append(m.get_fitness_func_value())
         p = np.array(p)
         p -= max(p) + 1
         p = -p
@@ -559,7 +538,7 @@ class GA(object):
                     structure=self.models[0].get_structure()))
 
         # remember prev best value of fitness function
-        prev_value_of_fit = self.minus_log_likelihood(self.models[0])
+        prev_value_of_fit = self.models[0].get_fitness_func_value()
 
         # new population become current population
         self.models = new_models
@@ -609,7 +588,7 @@ class GA(object):
         old_cur_mut_rate = self.cur_mutation_rate
         self.cur_mutation_rate = self.params.hc_mutation_rate
         while local_without_changes < self.params.hc_stop_iter:
-            prev_value_of_fit = self.minus_log_likelihood(self.models[0])
+            prev_value_of_fit = self.models[0].get_fitness_func_value()
 
             flag, self.models[0] = self.upgrade_model(
                 self.models[0], self.cur_mutation_rate)
@@ -662,13 +641,8 @@ class GA(object):
                     self.out_dir, 'python_code', 'moments'))
             self.log_file = os.path.join(self.out_dir, 'GADMA_GA.log')
             open(self.log_file, 'a').close()
-            self.evaluations_log = os.path.join(self.out_dir, 'evaluations.log')
         else:
             self.log_file = None
-            self.evaluations_log = self.params.output_log_file
-        if self.evaluations_log is not None:
-            open(self.evaluations_log, 'a').close()
-            support.write_to_file(self.evaluations_log, 'Total time', 'logLL', 'model', 'iteration time')
 
         # help functions
         def run_one_ga_and_one_ls():
@@ -679,7 +653,7 @@ class GA(object):
                         copy.deepcopy(self.models[0]), self.final_models)
             if not self.run_before_ls:
                 self.run_before_ls = True
-            if self.run_ls and self.params.optimize_name is not None:
+            if self.run_ls:
                 best_model = copy.deepcopy(self.models[0])
                 support.write_to_file(
                     self.log_file,
@@ -745,13 +719,11 @@ class GA(object):
                     self.models[0]),
                 self.final_models)
         self.print_and_draw_best_model()
- 
 
         self.cur_iteration += 1
 
         # main part
         run_one_ga_and_one_ls()
-        
         if not self.is_custom_model:
             while not (self.models[0].get_structure() ==
                        self.params.final_structure).all():
@@ -802,7 +774,7 @@ class GA(object):
     def update_mutation_rate_and_strength(self, prev_value_of_fit):
         flag = (
             prev_value_of_fit -
-            self.minus_log_likelihood(self.models[0])) > 1e-8
+            self.models[0].get_fitness_func_value()) > 1e-8
         self.update_mutation_rate(flag)
         self.update_mutation_strength(flag)
 

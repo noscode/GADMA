@@ -131,7 +131,7 @@ def get_95_confidence_intervals(func_ex, p0, data, pts=None, log=False, multinom
     return np.array([[7000* (m - 1.96 * s), 7000 * (m + 1.96 * s)] for m,s in zip(p0, stds)])
 
 
-def optimize_ga(number_of_params, data, model_func, pts=None, lower_bound=None, upper_bound=None, p0=None,
+def optimize_ga(number_of_params, data, model_func, pts=None, lower_bound=None, upper_bound=None, X_init=None, Y_init=None,
                  multinom=True, p_ids = None, mutation_strength=0.2, const_for_mut_strength=1.1, mutation_rate=0.2, const_for_mut_rate=1.2,
                  epsilon=1e-2, stop_iter=100, size_of_generation_in_ga=10, frac_of_old_models=0.2, frac_of_mutated_models=0.3, 
                  frac_of_crossed_models=0.3, optimization_name='optimize_log', maxeval=None, num_init_pts=50, output_log_file=None):
@@ -250,8 +250,18 @@ def optimize_ga(number_of_params, data, model_func, pts=None, lower_bound=None, 
     params.frac_of_crossed_models = frac_of_crossed_models
 
     params.final_check()
-    
-    ga_instance = GA(params, one_initial_model=Demographic_model(params, initial_vector=p0))
+
+    if X_init:
+        init_models = []
+        for i, p in enumerate(X_init):
+            init_models.append(Demographic_model(params, initial_vector=p))
+            if Y_init:
+                init_models[-1].fitness_func_value = Y_init[i]
+        if len(init_models) == 0:
+            init_models = None
+    else:
+        init_models = None
+    ga_instance = GA(params, initial_models=init_models)
     best_model = ga_instance.run()
     return best_model.params
 

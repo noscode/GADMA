@@ -614,6 +614,8 @@ class Demographic_model:
             if not self.params.multinom:
                 self.popt.append(1.0)
                 self.normalize_by_Nref()
+            self.popt_len = len(self.popt)
+            self.number_of_changes = np.zeros(self.popt_len)
             self.has_changed()
             return
 
@@ -1430,7 +1432,7 @@ class Demographic_model:
         if data_sample is not None:
             self.has_changed()
         if self.aic_score is None:
-            self.get_fitness_func_value(data_sample)
+            self.aic_score = self.get_number_of_params() * 2 - 2 * self.get_fitness_func_value(data_sample)
         return_value = self.aic_score
         if data_sample is not None:
             self.has_changed()
