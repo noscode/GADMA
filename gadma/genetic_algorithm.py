@@ -295,7 +295,7 @@ class GA(object):
     def minus_log_likelihood(self, model):	
         if model.sfs is None:	
             self.num_of_eval += 1 # increase number of logll eval. when we actually do it	
-        if model.sfs is not None or self.evaluations_log is None:	
+        if model.fitness_func_value is not None or self.evaluations_log is None:	
             return model.get_fitness_func_value()	
 
         t1 = time.time()	
