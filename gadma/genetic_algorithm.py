@@ -327,9 +327,9 @@ class GA(object):
             if self.params.num_init_pts is None:
                 # generate random models 5 times more than the population's size
                 num_of_init_models = 5 * self.size_of_generation	
-                else:
-                    num_of_init_models = self.params.num_init_pts
-                for i in range(num_of_init_models):
+            else:
+                num_of_init_models = self.params.num_init_pts
+            for i in range(num_of_init_models):
                 self.models.append(self.get_random_model())
 
         # sort by fintess function and select first size_of_generation models
