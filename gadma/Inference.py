@@ -251,7 +251,7 @@ def optimize_ga(number_of_params, data, model_func, pts=None, lower_bound=None, 
 
     params.final_check()
 
-    if X_init:
+    if X_init is not None:
         init_models = []
         for i, p in enumerate(X_init):
             init_models.append(Demographic_model(params, initial_vector=p))
