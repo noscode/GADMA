@@ -462,34 +462,33 @@ class Options_storage:
         if self.final_structure is not None:
             self.final_structure = np.array(
                 self.final_structure)
+        if self.lower_bound is None:
+            self.lower_bound = []
+            for p_id in self.p_ids:
+                if p_id == 'n':
+                    self.lower_bound.append(self.min_N)
+                elif p_id == 't':
+                    self.lower_bound.append(self.min_T)
+                elif p_id == 'm':
+                    self.lower_bound.append(self.min_M)
+                elif p_id == 's':
+                    self.lower_bound.append(0.0 + self.min_N)
         else:
-            if self.lower_bound is None:
-                self.lower_bound = []
-                for p_id in self.p_ids:
-                    if p_id == 'n':
-                        self.lower_bound.append(self.min_N)
-                    elif p_id == 't':
-                        self.lower_bound.append(self.min_T)
-                    elif p_id == 'm':
-                        self.lower_bound.append(self.min_M)
-                    elif p_id == 's':
-                        self.lower_bound.append(0.0 + self.min_N)
-            else:
-                self.lower_bound = [float(x) for x in support.check_comma_sep_list(self.lower_bound, is_int=False)]
+            self.lower_bound = [float(x) for x in support.check_comma_sep_list(self.lower_bound, is_int=False)]
 
-            if self.upper_bound is None:
-                self.upper_bound = []
-                for p_id in self.p_ids:
-                    if p_id == 'n':
-                        self.upper_bound.append(self.max_N)
-                    elif p_id == 't':
-                        self.upper_bound.append(self.max_T)
-                    elif p_id == 'm':
-                        self.upper_bound.append(self.max_M)
-                    elif p_id == 's':
-                        self.upper_bound.append(1.0 - self.min_N)
-            else:
-                self.upper_bound = [float(x) for x in support.check_comma_sep_list(self.upper_bound, is_int=False)]
+        if self.upper_bound is None:
+            self.upper_bound = []
+            for p_id in self.p_ids:
+                if p_id == 'n':
+                    self.upper_bound.append(self.max_N)
+                elif p_id == 't':
+                    self.upper_bound.append(self.max_T)
+                elif p_id == 'm':
+                    self.upper_bound.append(self.max_M)
+                elif p_id == 's':
+                    self.upper_bound.append(1.0 - self.min_N)
+        else:
+            self.upper_bound = [float(x) for x in support.check_comma_sep_list(self.upper_bound, is_int=False)]
 
 
     def check(self):
@@ -774,7 +773,7 @@ def usage():
         "\t-o/--output <output_dir>\toutput directory.\n"\
         "\t-i/--input <in.fs>/<in.txt>\tinput file with AFS or in dadi format.\n"\
         "\t--resume <resume_dir>\t\tresume another launch from <resume_dir>.\n"\
-        "\t--only_models\t\t\tflag to take models only from another launch (--resume option).\n"\
+        "\t--only_models\t\t\tflag to take models only from another\n\t\t\t\t\tlaunch (--resume option).\n"\
         "\n\n"\
         "\t-h/--help\t\tshow this help message and exit.\n"\
         "\t-v/--version\t\tshow version and exit.\n"\
