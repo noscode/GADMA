@@ -253,7 +253,7 @@ def load_spectrum(filename, proj, pop_labels):
         error(
             "File " +
             filename +
-            " doesn't end with one of {}". format(ALLOWED_READS_EXTENSIONS))
+            " doesn't end with one of {}".format(READ_ALLOWED_EXTENSIONS.keys()))
     return READ_ALLOWED_EXTENSIONS[ext](filename, proj, pop_labels)
 
 
